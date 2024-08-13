@@ -1,7 +1,9 @@
-from flask import request, jsonify,send_from_directory
+
+from flask import request, jsonify ,send_from_directory
 from config import app, db
 from models import Product
 import os
+
 
 @app.route("/products", methods=["GET"])
 def get_products():
