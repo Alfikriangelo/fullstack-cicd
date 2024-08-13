@@ -1,7 +1,6 @@
-from flask import request, jsonify ,send_from_directory
+from flask import request, jsonify
 from config import app, db
 from models import Product
-import os
 
 @app.route("/products", methods=["GET"])
 def get_products():
@@ -66,19 +65,6 @@ def delete_product(id):
     db.session.commit()
 
     return jsonify({"message": "Product deleted!"}), 200
-
-frontend_folder = os.path.join(os.getcwd(),"..","frontend")
-dist_folder = os.path.join(frontend_folder,"dist")
-
-# Server static files from the "dist" folder under the "frontend" directory
-@app.route("/",defaults={"filename":""})
-@app.route("/<path:filename>")
-def index(filename):
-  if not filename:
-    filename = "index.html"
-  return send_from_directory(dist_folder,filename)
-
-
 
 if __name__ == "__main__":
     with app.app_context():
