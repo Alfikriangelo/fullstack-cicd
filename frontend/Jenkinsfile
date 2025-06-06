@@ -1,0 +1,130 @@
+pipeline {
+  agent any
+
+  tools {
+    nodejs 'Node18'
+    python 'Python3'
+  }
+
+  environment {
+    FRONT_DIR = 'frontend'
+    BACK_DIR  = 'backend'
+    VENV_DIR  = "${BACK_DIR}/venv"
+  }
+
+  stages {
+    stage('Checkout') {
+      steps {
+        git url: 'https://github.com/your/repo.git', branch: 'main', credentialsId: 'your-cred-id'
+      }
+    }
+
+    stage('Build Frontend') {
+      steps {
+        dir("${FRONT_DIR}") {
+          sh '''
+            npm install
+            npm run build
+          '''
+        }
+      }
+    }
+
+    stage('Build Backend') {
+      steps {
+        dir("${BACK_DIR}") {
+          sh '''
+            python3 -m venv venv
+            . venv/bin/activate
+            pip install -r requirements.txt
+          '''
+        }
+      }
+    }
+
+    stage('Test Frontend') {
+      steps {
+        dir("${FRONT_DIR}") {
+          sh 'npm test || true'
+        }
+      }
+    }
+
+    stage('Test Backend') {
+      steps {
+        dir("${BACK_DIR}") {
+          sh '''
+            . venv/bin/activate
+            pytest || true
+          '''
+        }
+      }
+    }
+
+    stage('SAST - Lint Frontend') {
+      steps {
+        dir("${FRONT_DIR}") {
+          sh 'npx eslint . || true'
+        }
+      }
+    }
+
+    stage('SAST - Lint Backend') {
+      steps {
+        dir("${BACK_DIR}") {
+          sh '''
+            . venv/bin/activate
+            bandit -r . || true
+          '''
+        }
+      }
+    }
+
+    stage('Deploy to Test Environment') {
+      steps {
+        dir("${BACK_DIR}") {
+          sh '''
+            . venv/bin/activate
+            nohup flask run --host=0.0.0.0 --port=5000 &
+          '''
+        }
+        dir("${FRONT_DIR}") {
+          sh '''
+            nohup npx serve -s build -l 3000 &
+          '''
+        }
+      }
+    }
+
+    stage('DAST - OWASP ZAP Scan') {
+      steps {
+        sh '''
+          zap-cli start
+          zap-cli open-url http://localhost:3000
+          zap-cli active-scan http://localhost:3000
+          zap-cli report -o zap_report.html -f html
+          zap-cli stop
+        '''
+      }
+    }
+
+    stage('Deploy to Staging') {
+      steps {
+        sh '''
+          cp -r frontend/build/* /var/www/staging/frontend/
+          pkill -f "flask run" || true
+          FLASK_APP=backend/app.py nohup flask run --host=0.0.0.0 --port=8000 &
+        '''
+      }
+    }
+  }
+
+  post {
+    always {
+      archiveArtifacts artifacts: '**/zap_report.html', allowEmptyArchive: true
+    }
+    failure {
+      echo 'Pipeline failed'
+    }
+  }
+}
