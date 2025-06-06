@@ -1,25 +1,36 @@
 pipeline {
   agent any
 
-  tools {
-    nodejs 'Node18'
-  }
-
   environment {
     FRONT_DIR = 'frontend'
+    NODE_VERSION = '18.20.2'
   }
 
   stages {
     stage('Checkout') {
       steps {
-        git url: 'hhttps://github.com/Alfikriangelo/fullstack-cicd.git', branch: 'main', credentialsId: 'github-token'
+        git url: 'https://github.com/Alfikriangelo/fullstack-cicd.git', branch: 'main', credentialsId: 'github-token'
       }
     }
 
-    stage('Install Dependencies') {
+    stage('Install Node.js & Dependencies') {
       steps {
         dir("${FRONT_DIR}") {
-          sh 'npm install'
+          sh '''
+            # Install NVM
+            curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | bash
+
+            # Load NVM
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+
+            # Install Node.js
+            nvm install $NODE_VERSION
+            nvm use $NODE_VERSION
+
+            # Install dependencies
+            npm install
+          '''
         }
       }
     }
@@ -27,7 +38,13 @@ pipeline {
     stage('Build') {
       steps {
         dir("${FRONT_DIR}") {
-          sh 'npm run build'
+          sh '''
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+            nvm use $NODE_VERSION
+
+            npm run build
+          '''
         }
       }
     }
@@ -35,7 +52,13 @@ pipeline {
     stage('Test') {
       steps {
         dir("${FRONT_DIR}") {
-          sh 'npm test || true'
+          sh '''
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+            nvm use $NODE_VERSION
+
+            npm test || true
+          '''
         }
       }
     }
@@ -43,7 +66,13 @@ pipeline {
     stage('SAST - ESLint') {
       steps {
         dir("${FRONT_DIR}") {
-          sh 'npx eslint . || true'
+          sh '''
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+            nvm use $NODE_VERSION
+
+            npx eslint . || true
+          '''
         }
       }
     }
