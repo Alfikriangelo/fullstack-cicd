@@ -1,10 +1,6 @@
 pipeline {
   agent any
 
-  tools {
-    nodejs 'Node18'
-  }
-
   environment {
     FRONT_DIR = 'frontend'
     NODE_VERSION = '18.20.2'
@@ -13,16 +9,13 @@ pipeline {
   stages {
     stage('Checkout') {
       steps {
-        git url: 'hhttps://github.com/Alfikriangelo/fullstack-cicd.git', branch: 'main', credentialsId: 'github-token'
         git url: 'https://github.com/Alfikriangelo/fullstack-cicd.git', branch: 'main', credentialsId: 'github-token'
       }
     }
 
-    stage('Install Dependencies') {
     stage('Install Node.js & Dependencies') {
       steps {
         dir("${FRONT_DIR}") {
-          sh 'npm install'
           sh '''
             # Install NVM
             curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | bash
@@ -45,21 +38,6 @@ pipeline {
     stage('Build') {
       steps {
         dir("${FRONT_DIR}") {
-          sh 'npm run build'
-        }
-      }
-    }
-
-    stage('Test') {
-    stage('Build') {
-      steps {
-        dir("${FRONT_DIR}") {
-          sh 'npm test || true'
-        }
-      }
-    }
-
-    stage('SAST - ESLint') {
           sh '''
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
@@ -74,12 +52,6 @@ pipeline {
     stage('Test') {
       steps {
         dir("${FRONT_DIR}") {
-          sh 'npx eslint . || true'
-        }
-      }
-    }
-
-    stage('DAST - OWASP ZAP') {
           sh '''
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
@@ -110,8 +82,6 @@ pipeline {
         sh '''
           nohup npx serve -s frontend/build -l 3000 &
           sleep 5
-          nohup npx serve -s frontend/build -l 3000 &
-          sleep 5
           zap-cli start
           zap-cli open-url http://localhost:3000
           zap-cli active-scan http://localhost:3000
@@ -123,7 +93,6 @@ pipeline {
 
     stage('Deploy to Staging') {
       steps {
-        sh 'cp -r frontend/build/* /var/www/staging/frontend/'
         sh 'cp -r frontend/build/* /var/www/staging/frontend/'
       }
     }
